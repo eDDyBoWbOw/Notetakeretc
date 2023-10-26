@@ -13,12 +13,12 @@ notes.get('/', (req, res) => {
 });
 
 // GET Route for a specific note
-notes.get('/:note_id', (req, res) => {
-    const noteId = req.params.note_id;
+notes.get('/:id', (req, res) => {
+    const noteId = req.params.id;
     readFromFile(db)
       .then((data) => JSON.parse(data))
       .then((json) => {
-        const result = json.filter((note) => note.note_id === noteId);
+        const result = json.filter((note) => note.id === noteId);
         return result.length > 0
           ? res.json(result)
           : res.json('No note with that ID');
@@ -26,20 +26,26 @@ notes.get('/:note_id', (req, res) => {
   });
   
   // DELETE Route for a specific note
-  notes.delete('/:note_id', (req, res) => {
-    const noteId = req.params.note_id;
-    readFromFile(db)
-      .then((data) => JSON.parse(data))
-      .then((json) => {
-        // Make a new array of all notes except the one with the ID provided in the URL
-        const result = json.filter((note) => note.note_id !== noteId);
+  notes.delete('/:id', async (req, res) => {
+    const noteId = req.params.id;
   
-        // Save that array to the filesystem
-        writeToFile(db, result);
+    try {
+      // Read data from the file
+      const data = await readFromFile(db);
+      const notes = JSON.parse(data);
   
-        // Respond to the DELETE request
-        res.json(`Item ${noteId} has been deleted 🗑️`);
-      });
+      // Filter out the note with the given ID
+      const updatedNotes = notes.filter((note) => note.id !== noteId);
+  
+      // Write updated notes back to the file
+      await writeToFile(db, updatedNotes);
+  
+      // Respond to the DELETE request
+      res.json(`Note with ID ${noteId} has been deleted 🗑️`);
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json('Internal Server Error');
+    }
   });
 
 // POST Route for a new UX/UI note
@@ -52,7 +58,7 @@ notes.post('/', (req, res) => {
     const newNote = {
      title,
      text,
-     note_id: uuidv4(),
+     id: uuidv4(),
     };
 
     readAndAppend(newNote, db);
